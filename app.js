@@ -1,4 +1,5 @@
 /* TryExam - CCNA 200-301 v2.0 sınav simülatörü
+ * Soru türleri: tek seçim, çoklu seçim, eşleştirme (sürükle-bırak), yapılandırma (komut yazma)
  * Tamamen istemci tarafında çalışır (GitHub Pages uyumlu).
  */
 (function () {
@@ -14,7 +15,7 @@
     AUTHOR_SITE: "www.cemaltaner.com.tr",
     CERT_NAME: "CCNA 200-301 v2.0 Sınav Simülatörü Tamamlama Belgesi",
     ORG_NAME: "TryExam",
-    STORE_KEY: "tryexam_state_v1",
+    STORE_KEY: "tryexam_state_v2",
     PASS_KEY: "tryexam_last_pass_v1"
   };
 
@@ -25,6 +26,7 @@
       $(s).classList.toggle("hidden", s !== id));
   };
   const pad = (n) => String(n).padStart(2, "0");
+  const LETTER = (i) => String.fromCharCode(65 + i);
   const fmtTime = (ms) => {
     const s = Math.max(0, Math.floor(ms / 1000));
     return pad(Math.floor(s / 3600)) + ":" + pad(Math.floor((s % 3600) / 60)) + ":" + pad(s % 60);
@@ -38,22 +40,95 @@
     return a;
   };
   const domainName = (id) => DOMAINS.find((d) => d.id === id).name;
+  const normLine = (s) => String(s).trim().toLowerCase().replace(/\s+/g, " ");
+  const typeOf = (q) => q.type || "single";
 
-  // Her soru için seçenekleri karıştır, doğru cevabın yeni indeksini hesapla
+  // Sorular için seçenekleri/eşleştirmeleri karıştır, doğru cevapları yeniden eşle
   function prepareQuestion(src) {
+    const type = typeOf(src);
+    const base = { type: type, domain: src.domain, q: src.q, explain: src.explain };
+
+    if (type === "multi") {
+      const order = shuffle(src.options.map((_, i) => i));
+      return Object.assign(base, {
+        options: order.map((i) => src.options[i]),
+        answer: src.answer.map((a) => order.indexOf(a)).sort((x, y) => x - y)
+      });
+    }
+    if (type === "match") {
+      const lOrder = shuffle(src.left.map((_, i) => i));
+      const rOrder = shuffle(src.right.map((_, i) => i));
+      return Object.assign(base, {
+        left: lOrder.map((i) => src.left[i]),
+        right: rOrder.map((i) => src.right[i]),
+        answer: lOrder.map((li) => rOrder.indexOf(src.answer[li]))
+      });
+    }
+    if (type === "config") {
+      return Object.assign(base, { answerSets: src.answerSets });
+    }
+    // single
     const order = shuffle(src.options.map((_, i) => i));
-    return {
-      domain: src.domain,
-      q: src.q,
-      explain: src.explain,
+    return Object.assign(base, {
       options: order.map((i) => src.options[i]),
       answer: order.indexOf(src.answer)
-    };
+    });
+  }
+
+  // Cevap kontrolleri
+  function isAnswered(q, a) {
+    const t = typeOf(q);
+    if (t === "single") return a !== undefined && a !== null;
+    if (t === "multi") return Array.isArray(a) && a.length > 0;
+    if (t === "match") return Array.isArray(a) && a.some((x) => x !== null && x !== undefined);
+    if (t === "config") return typeof a === "string" && a.trim() !== "";
+    return false;
+  }
+
+  function isCorrect(q, a) {
+    if (!isAnswered(q, a)) return false;
+    const t = typeOf(q);
+    if (t === "single") return a === q.answer;
+    if (t === "multi") {
+      const u = a.slice().sort((x, y) => x - y);
+      return u.length === q.answer.length && u.every((v, i) => v === q.answer[i]);
+    }
+    if (t === "match") return q.answer.every((v, i) => a[i] === v);
+    if (t === "config") {
+      const lines = a.split(/\r?\n/).map(normLine).filter(Boolean).sort();
+      return q.answerSets.some((set) => {
+        const s = set.map(normLine).sort();
+        return s.length === lines.length && s.every((v, i) => v === lines[i]);
+      });
+    }
+    return false;
+  }
+
+  function answerText(q, a) {
+    if (!isAnswered(q, a)) return "boş";
+    const t = typeOf(q);
+    if (t === "single") return LETTER(a) + ") " + q.options[a];
+    if (t === "multi") return a.map((i) => LETTER(i) + ") " + q.options[i]).join("\n");
+    if (t === "match") return q.left.map((l, j) =>
+      l + " → " + (a[j] === null || a[j] === undefined ? "(boş)" : q.right[a[j]])).join("\n");
+    if (t === "config") return a.trim();
+    return "";
+  }
+
+  function correctText(q) {
+    const t = typeOf(q);
+    if (t === "single") return LETTER(q.answer) + ") " + q.options[q.answer];
+    if (t === "multi") return q.answer.map((i) => LETTER(i) + ") " + q.options[i]).join("\n");
+    if (t === "match") return q.left.map((l, j) => l + " → " + q.right[q.answer[j]]).join("\n");
+    if (t === "config") return q.answerSets[0].join("\n");
+    return "";
   }
 
   // ---- Durum -------------------------------------------------------------
   let state = null;     // { mode, questions, answers, flags, current, startedAt, endsAt, finished }
   let timerId = null;
+  let selectedChip = null;   // eşleştirmede tıklama ile seçilen sağ öğe
+  let lastIdx = -1;
 
   function saveState() {
     try { localStorage.setItem(CONFIG.STORE_KEY, JSON.stringify(state)); } catch (e) { /* yoksay */ }
@@ -70,16 +145,14 @@
 
   // ---- Başlangıç ekranı --------------------------------------------------
   function renderStart() {
-    const lines = DOMAINS.map((d) =>
-      `${d.weight}% · ${d.id}.0 ${d.name}`).join("<br>");
-    $("domainWeights").innerHTML = lines;
+    $("domainWeights").innerHTML = DOMAINS.map((d) =>
+      d.weight + "% · " + d.id + ".0 " + d.name).join("<br>");
     show("screen-start");
     $("examTimer").classList.add("hidden");
   }
 
   function startExam(mode) {
     const count = mode === "exam" ? CONFIG.EXAM_QUESTIONS : CONFIG.PRACTICE_QUESTIONS;
-    // Konu ağırlıklarına göre seçim (sınav modu); pratikte rastgele
     let picked = [];
     if (mode === "exam") {
       DOMAINS.forEach((d) => {
@@ -87,7 +160,6 @@
         const n = Math.round(count * d.weight / 100);
         picked = picked.concat(pool.slice(0, n));
       });
-      // Yuvarlama farkını tamamla
       if (picked.length < count) {
         const rest = shuffle(QUESTIONS.filter((q) => picked.indexOf(q) === -1));
         picked = picked.concat(rest.slice(0, count - picked.length));
@@ -138,40 +210,41 @@
   }
 
   // ---- Sınav ekranı ------------------------------------------------------
+  function typeHint(q) {
+    const t = typeOf(q);
+    if (t === "multi") return "Birden fazla doğru seçenek vardır; tümünü işaretleyin (kısmi puan yoktur).";
+    if (t === "match") return "Sol kutulara sağdaki açıklamaları sürükleyip bırakın (veya önce açıklamaya, sonra kutuya tıklayın). Dolu bir kutuya tıklayarak eşleşmeyi kaldırabilirsiniz.";
+    if (t === "config") return "Komutu IOS yazım kurallarına uygun yazın. Birden fazla komut gerekiyorsa her komutu yeni satıra yazın.";
+    return "";
+  }
+
   function renderQuestion() {
+    if (state.current !== lastIdx) { selectedChip = null; lastIdx = state.current; }
     const total = state.questions.length;
     const idx = state.current;
     const qObj = state.questions[idx];
-    const answered = Object.keys(state.answers).length;
+    const t = typeOf(qObj);
+    const answeredCount = state.questions.filter((q, i) => isAnswered(q, state.answers[i])).length;
 
     $("examMeta").textContent =
       (state.mode === "exam" ? "Sınav" : "Pratik") + " · Soru " + (idx + 1) + " / " + total +
-      " · Cevaplanan: " + answered;
-    $("progressBar").style.width = Math.round((answered / total) * 100) + "%";
-    $("qDomain").textContent = qObj.domain + ".0 " + domainName(qObj.domain);
+      " · Cevaplanan: " + answeredCount;
+    $("progressBar").style.width = Math.round((answeredCount / total) * 100) + "%";
+    $("qDomain").textContent = qObj.domain + ".0 " + domainName(qObj.domain) +
+      (t === "single" ? "" : " · " + ({ multi: "Çoklu seçim", match: "Eşleştirme", config: "Yapılandırma" })[t]);
     $("qText").textContent = (idx + 1) + ". " + qObj.q;
 
     const box = $("qOptions");
     box.innerHTML = "";
-    qObj.options.forEach((text, i) => {
-      const label = document.createElement("label");
-      label.className = "opt" + (state.answers[idx] === i ? " selected" : "");
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = "opt";
-      input.value = i;
-      input.checked = state.answers[idx] === i;
-      input.addEventListener("change", () => {
-        state.answers[idx] = i;
-        saveState();
-        renderQuestion();
-      });
-      const span = document.createElement("span");
-      span.textContent = String.fromCharCode(65 + i) + ") " + text;
-      label.appendChild(input);
-      label.appendChild(span);
-      box.appendChild(label);
-    });
+    const hint = document.createElement("p");
+    hint.className = "muted";
+    hint.textContent = typeHint(qObj);
+    if (hint.textContent) box.appendChild(hint);
+
+    if (t === "single") renderSingle(box, qObj, idx);
+    else if (t === "multi") renderMulti(box, qObj, idx);
+    else if (t === "match") renderMatch(box, qObj, idx);
+    else if (t === "config") renderConfig(box, qObj, idx);
 
     $("btnPrev").disabled = idx === 0;
     $("btnNext").disabled = idx === total - 1;
@@ -180,11 +253,11 @@
     // Soru listesi
     const nav = $("qNav");
     nav.innerHTML = "";
-    state.questions.forEach((_, i) => {
+    state.questions.forEach((q, i) => {
       const b = document.createElement("button");
       b.textContent = i + 1;
       let cls = "";
-      if (state.answers[i] !== undefined) cls += " answered";
+      if (isAnswered(q, state.answers[i])) cls += " answered";
       if (state.flags[i]) cls += " flagged";
       if (i === idx) cls += " current";
       b.className = cls.trim();
@@ -192,6 +265,162 @@
       nav.appendChild(b);
     });
     saveState();
+  }
+
+  function renderSingle(box, qObj, idx) {
+    qObj.options.forEach((text, i) => {
+      const label = document.createElement("label");
+      label.className = "opt" + (state.answers[idx] === i ? " selected" : "");
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "opt";
+      input.checked = state.answers[idx] === i;
+      input.addEventListener("change", () => {
+        state.answers[idx] = i;
+        saveState();
+        renderQuestion();
+      });
+      const span = document.createElement("span");
+      span.textContent = LETTER(i) + ") " + text;
+      label.appendChild(input);
+      label.appendChild(span);
+      box.appendChild(label);
+    });
+  }
+
+  function renderMulti(box, qObj, idx) {
+    const current = Array.isArray(state.answers[idx]) ? state.answers[idx] : [];
+    qObj.options.forEach((text, i) => {
+      const checked = current.indexOf(i) !== -1;
+      const label = document.createElement("label");
+      label.className = "opt" + (checked ? " selected" : "");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = checked;
+      input.addEventListener("change", () => {
+        let arr = Array.isArray(state.answers[idx]) ? state.answers[idx].slice() : [];
+        if (input.checked) arr.push(i); else arr = arr.filter((v) => v !== i);
+        arr.sort((x, y) => x - y);
+        if (arr.length) state.answers[idx] = arr; else delete state.answers[idx];
+        saveState();
+        renderQuestion();
+      });
+      const span = document.createElement("span");
+      span.textContent = LETTER(i) + ") " + text;
+      label.appendChild(input);
+      label.appendChild(span);
+      box.appendChild(label);
+    });
+  }
+
+  function renderMatch(box, qObj, idx) {
+    if (!Array.isArray(state.answers[idx])) {
+      state.answers[idx] = qObj.left.map(() => null);
+    }
+    const ans = state.answers[idx];
+    const used = ans.filter((v) => v !== null);
+
+    const assign = (j, r) => {
+      const arr = state.answers[idx].slice();
+      for (let k = 0; k < arr.length; k++) if (arr[k] === r) arr[k] = null;
+      arr[j] = r;
+      state.answers[idx] = arr;
+      selectedChip = null;
+      saveState();
+      renderQuestion();
+    };
+    const unassign = (j) => {
+      const arr = state.answers[idx].slice();
+      arr[j] = null;
+      state.answers[idx] = arr;
+      saveState();
+      renderQuestion();
+    };
+
+    const wrap = document.createElement("div");
+    wrap.className = "match-wrap";
+
+    // Sol: hedef kutuları
+    const left = document.createElement("div");
+    left.className = "match-col";
+    const lh = document.createElement("div");
+    lh.className = "match-head";
+    lh.textContent = "Kavram";
+    left.appendChild(lh);
+    qObj.left.forEach((label, j) => {
+      const row = document.createElement("div");
+      row.className = "slot-row";
+      const name = document.createElement("div");
+      name.className = "slot-name";
+      name.textContent = (j + 1) + ". " + label;
+      const drop = document.createElement("div");
+      drop.className = "drop" + (ans[j] !== null ? " filled" : "");
+      drop.textContent = ans[j] !== null ? qObj.right[ans[j]] : "Buraya sürükleyin";
+      drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+      drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+      drop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const r = parseInt(e.dataTransfer.getData("text/plain"), 10);
+        if (!isNaN(r)) assign(j, r);
+      });
+      drop.addEventListener("click", () => {
+        if (selectedChip !== null) assign(j, selectedChip);
+        else if (ans[j] !== null) unassign(j);
+      });
+      row.appendChild(name);
+      row.appendChild(drop);
+      left.appendChild(row);
+    });
+
+    // Sağ: sürüklenebilir açıklamalar
+    const right = document.createElement("div");
+    right.className = "match-col";
+    const rh = document.createElement("div");
+    rh.className = "match-head";
+    rh.textContent = "Açıklamalar";
+    right.appendChild(rh);
+    qObj.right.forEach((text, r) => {
+      if (used.indexOf(r) !== -1) return;   // zaten yerleştirilmiş
+      const chip = document.createElement("div");
+      chip.className = "chip" + (selectedChip === r ? " selected" : "");
+      chip.draggable = true;
+      chip.textContent = text;
+      chip.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", String(r));
+        e.dataTransfer.effectAllowed = "move";
+      });
+      chip.addEventListener("click", () => {
+        selectedChip = selectedChip === r ? null : r;
+        renderQuestion();
+      });
+      right.appendChild(chip);
+    });
+    if (!right.querySelector(".chip")) {
+      const done = document.createElement("div");
+      done.className = "muted";
+      done.textContent = "Tüm açıklamalar yerleştirildi.";
+      right.appendChild(done);
+    }
+
+    wrap.appendChild(left);
+    wrap.appendChild(right);
+    box.appendChild(wrap);
+  }
+
+  function renderConfig(box, qObj, idx) {
+    const ta = document.createElement("textarea");
+    ta.className = "cli";
+    ta.rows = 4;
+    ta.spellcheck = false;
+    ta.placeholder = "Komutunuzu buraya yazın...";
+    ta.value = typeof state.answers[idx] === "string" ? state.answers[idx] : "";
+    ta.addEventListener("input", () => {
+      if (ta.value.trim()) state.answers[idx] = ta.value;
+      else delete state.answers[idx];
+      saveState();
+    });
+    ta.addEventListener("change", () => renderQuestion());
+    box.appendChild(ta);
   }
 
   function bindExamControls() {
@@ -206,7 +435,7 @@
       renderQuestion();
     });
     $("btnSubmit").addEventListener("click", () => {
-      const unanswered = state.questions.length - Object.keys(state.answers).length;
+      const unanswered = state.questions.filter((q, i) => !isAnswered(q, state.answers[i])).length;
       const msg = unanswered > 0
         ? unanswered + " sorunuz boş. Yine de sınavı bitirmek istiyor musunuz?"
         : "Sınavı bitirmek istediğinizden emin misiniz?";
@@ -221,7 +450,7 @@
     DOMAINS.forEach((d) => { perDomain[d.id] = { right: 0, total: 0 }; });
     st.questions.forEach((q, i) => {
       perDomain[q.domain].total++;
-      if (st.answers[i] === q.answer) { correct++; perDomain[q.domain].right++; }
+      if (isCorrect(q, st.answers[i])) { correct++; perDomain[q.domain].right++; }
     });
     const pct = Math.round((correct / st.questions.length) * 100);
     return { correct: correct, total: st.questions.length, pct: pct, scaled: Math.round(pct * 10), perDomain: perDomain };
@@ -245,7 +474,6 @@
       r.correct + " / " + r.total + " doğru (%" + r.pct + ") · Geçme notu %" + CONFIG.PASS_PERCENT +
       " · Süre: " + mins + " dk" + (timeUp ? " (süre doldu)" : "");
 
-    // Konu bazlı
     const dr = $("domainResults");
     dr.innerHTML = "";
     DOMAINS.forEach((d) => {
@@ -261,31 +489,37 @@
       dr.appendChild(row);
     });
 
-    // İnceleme
     const rv = $("review");
     rv.innerHTML = "";
     state.questions.forEach((q, i) => {
       const user = state.answers[i];
-      const ok = user === q.answer;
+      const answered = isAnswered(q, user);
+      const ok = isCorrect(q, user);
       const item = document.createElement("div");
-      item.className = "review-item " + (user === undefined ? "" : ok ? "right" : "wrong");
+      item.className = "review-item " + (!answered ? "" : ok ? "right" : "wrong");
+
       const title = document.createElement("div");
-      title.innerHTML = "<strong></strong>";
-      title.querySelector("strong").textContent = (i + 1) + ". " + q.q;
+      const strong = document.createElement("strong");
+      strong.textContent = (i + 1) + ". " + q.q;
+      title.appendChild(strong);
+
       const yours = document.createElement("div");
-      yours.className = "muted";
-      yours.textContent = "Cevabınız: " + (user === undefined ? "boş" : String.fromCharCode(65 + user) + ") " + q.options[user]);
+      yours.className = "muted pre";
+      yours.textContent = "Cevabınız: " + answerText(q, user);
       const correct = document.createElement("div");
-      correct.className = "muted";
-      correct.textContent = "Doğru cevap: " + String.fromCharCode(65 + q.answer) + ") " + q.options[q.answer];
+      correct.className = "muted pre";
+      correct.textContent = "Doğru cevap: " + correctText(q);
       const ex = document.createElement("div");
       ex.className = "explain";
       ex.textContent = q.explain;
-      item.appendChild(title); item.appendChild(yours); item.appendChild(correct); item.appendChild(ex);
+
+      item.appendChild(title);
+      item.appendChild(yours);
+      item.appendChild(correct);
+      item.appendChild(ex);
       rv.appendChild(item);
     });
 
-    // Sertifika hakkı: yalnızca sınav modunda ve geçme notunda
     const canCert = passed && state.mode === "exam";
     $("btnCert").classList.toggle("hidden", !canCert);
     if (canCert) savePass(r);
@@ -324,14 +558,12 @@
     return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
   }
 
-  // Sertifikayı tuvalde çiz (Türkçe karakterler için sistem yazı tipi kullanılır)
   function drawCertificate(canvas, name, pass) {
     const ctx = canvas.getContext("2d");
     const W = canvas.width, H = canvas.height;
     ctx.fillStyle = "#fbfcfe";
     ctx.fillRect(0, 0, W, H);
 
-    // Çerçeveler
     ctx.strokeStyle = "#0b5cad"; ctx.lineWidth = 18;
     ctx.strokeRect(40, 40, W - 80, H - 80);
     ctx.strokeStyle = "#9fb8d6"; ctx.lineWidth = 4;
@@ -439,24 +671,15 @@
 
     $("btnRetry").addEventListener("click", () => { clearState(); renderStart(); });
     $("btnCert").addEventListener("click", () => {
-      const pass = getPass();
-      if (pass) {
-        $("certCanvas").classList.add("hidden");
-        $("certActions").classList.add("hidden");
-        $("linkedinHelp").classList.add("hidden");
-      }
+      $("certCanvas").classList.add("hidden");
+      $("certActions").classList.add("hidden");
+      $("linkedinHelp").classList.add("hidden");
       show("screen-cert");
     });
     $("btnBackResults").addEventListener("click", () => show("screen-results"));
     $("btnMakeCert").addEventListener("click", renderCertPreview);
     $("btnDownloadPdf").addEventListener("click", downloadPdf);
     $("btnLinkedin").addEventListener("click", shareLinkedIn);
-
-    // Yarım kalan sınav varsa (sayfa yenilendiğinde) sınav ekranına dön
-    const saved = loadState();
-    if (saved && saved.mode === "exam" && saved.finished) {
-      // Tamamlanmış sınavı tekrar gösterme; başlangıç ekranı kalsın
-    }
   }
 
   document.addEventListener("DOMContentLoaded", init);

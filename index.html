@@ -61,7 +61,20 @@
     .cert-preview { width: 100%; border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
     footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 12px 40px; }
     footer a { color: var(--accent); }
-    @media (max-width: 600px) { .card { padding: 16px; } .result-big { font-size: 36px; } }
+    .pre { white-space: pre-line; }
+    .match-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+    .match-col { background: #f7f9fc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .match-head { font-weight: 700; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+    .slot-row { margin-bottom: 12px; }
+    .slot-name { font-size: 15px; margin-bottom: 4px; }
+    .drop { min-height: 44px; border: 2px dashed #b8c6d6; border-radius: 7px; padding: 10px; background: #fff; color: var(--muted); font-size: 14px; cursor: pointer; }
+    .drop.filled { border-style: solid; border-color: var(--accent); color: var(--text); background: #eef5fc; }
+    .drop.over { border-color: var(--accent); background: #dbeafe; }
+    .chip { padding: 10px 12px; margin-bottom: 8px; background: #fff; border: 1px solid var(--border); border-radius: 7px; font-size: 14px; cursor: grab; user-select: none; }
+    .chip:hover { border-color: var(--accent); }
+    .chip.selected { border-color: var(--accent); background: #dbeafe; outline: 2px solid var(--accent); }
+    textarea.cli { width: 100%; font-family: Consolas, "Courier New", monospace; font-size: 15px; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: #0f1b2a; color: #d6f5d6; }
+    @media (max-width: 600px) { .card { padding: 16px; } .result-big { font-size: 36px; } .match-wrap { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -82,6 +95,8 @@
       <li>Süre: <strong>120 dakika</strong> (süre dolunca sınav otomatik bitirilir)</li>
       <li>Soru sayısı: <strong>100</strong> çoktan seçmeli soru, tek doğru cevap</li>
       <li>Geçme notu: <strong>%80</strong> ve üzeri (1000 üzerinden 800 ölçeğinde gösterilir)</li>
+      <li>Soru türleri: tek seçim, <strong>birden fazla doğru seçenek</strong>, <strong>sürükle-bırak eşleştirme</strong> ve <strong>yapılandırma (komut yazma)</strong></li>
+      <li>Çoklu seçim ve eşleştirme sorularında tüm cevaplar doğru olmalıdır (kısmi puan yoktur)</li>
       <li>Sorular arasında serbestçe gezinebilir, işaretleme yapabilirsiniz</li>
       <li>Sınav sırasında sayfayı yenilemeyin; ilerleme bu tarayıcıda saklanır</li>
     </ul>
@@ -172,6 +187,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="questions.js"></script>
 <script src="questions_extra.js"></script>
+<script src="questions_types.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
