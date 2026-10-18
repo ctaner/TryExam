@@ -4,7 +4,7 @@ Web tabanlı, tamamen istemci tarafında çalışan CCNA 200-301 v2.0 sınav sim
 Sorular Cisco'nun yayımladığı konu başlıklarına göre (5 alan, %25/%25/%20/%20/%10 ağırlık) özgün olarak hazırlanmıştır.
 
 ## Özellikler
-- 120 dakikalık zamanlı sınav, 40 soru, işaretleme ve soru listesi
+- 120 dakikalık zamanlı sınav, 100 soru (konu ağırlıklarına göre: 25/25/20/20/10), işaretleme ve soru listesi
 - Konu ağırlıklarına göre soru seçimi ve her soruda seçenek karıştırma
 - Yarım kalan sınavı sürdürme (tarayıcıda saklanır)
 - Alan bazlı performans raporu ve cevap incelemesi
@@ -35,5 +35,5 @@ Yayın adresi `https://<kullanıcı-adı>.github.io/TryExam/` olur. Farklı bir 
 - Sertifika bir **TryExam tamamlama belgesidir**; resmi CCNA sertifikası değildir.
 - GitHub Pages statik bir sitedir; sertifika numarası doğrulaması için sunucu tarafı bir kayıt bulunmaz.
   Sertifika numarası belgenin tutarlılığını göstermek içindir. İleride doğrulama gerekirse küçük bir API eklenebilir.
-- Soru bankası 41 sorudan oluşur. Daha fazla soru eklemek için `questions.js` dosyasına aynı biçimde kayıt ekleyin.
+- Soru bankası 103 sorudan oluşur (`questions.js` + `questions_extra.js`). Sınav her alandan ağırlığa göre soru seçer; soru bankası büyüdükçe farklı sınavlar üretilir.
 - Cisco, CCNA ve ilgili markalar Cisco Systems, Inc.'in ticari markalarıdır.

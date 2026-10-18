@@ -7,7 +7,7 @@
   // ---- Yapılandırma ------------------------------------------------------
   const CONFIG = {
     EXAM_MINUTES: 120,
-    EXAM_QUESTIONS: 40,
+    EXAM_QUESTIONS: 100,
     PRACTICE_QUESTIONS: 10,
     PASS_PERCENT: 80,
     SITE_URL: "https://ctaner.github.io/TryExam/",   // Yayın adresinize göre güncelleyin
