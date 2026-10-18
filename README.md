@@ -5,7 +5,7 @@ Sorular Cisco'nun yayımladığı konu başlıklarına göre (5 alan, %25/%25/%2
 
 ## Özellikler
 - 120 dakikalık zamanlı sınav, 100 soru (konu ağırlıklarına göre: 25/25/20/20/10), işaretleme ve soru listesi
-- Soru türleri: tek seçim, birden fazla doğru seçenek, sürükle-bırak eşleştirme ve yapılandırma (komut yazma)
+- Soru türleri: tek seçim, birden fazla doğru seçenek, sürükle-bırak eşleştirme ve topoloji tabanlı simülasyon (IOS benzeri konsolda görevler)
 - Konu ağırlıklarına göre soru seçimi ve her soruda seçenek karıştırma
 - Yarım kalan sınavı sürdürme (tarayıcıda saklanır)
 - Alan bazlı performans raporu ve cevap incelemesi
@@ -15,7 +15,8 @@ Sorular Cisco'nun yayımladığı konu başlıklarına göre (5 alan, %25/%25/%2
 
 ## Dosyalar
 - `index.html` — arayüz ve stiller
-- `questions.js`, `questions_extra.js`, `questions_types.js` — soru bankası (`DOMAINS`, `QUESTIONS`)
+- `questions.js`, `questions_extra.js`, `questions_types.js`, `questions_labs.js` — soru bankası (`DOMAINS`, `QUESTIONS`)
+- `lab.js` — IOS benzeri konsol simülatörü (komut ayrıştırma, show/ping, görev denetimi)
 - `app.js` — sınav mantığı, zamanlayıcı, sonuç ve sertifika
 - `README.md` — bu dosya
 
@@ -36,5 +37,6 @@ Yayın adresi `https://<kullanıcı-adı>.github.io/TryExam/` olur. Farklı bir 
 - Sertifika bir **TryExam tamamlama belgesidir**; resmi CCNA sertifikası değildir.
 - GitHub Pages statik bir sitedir; sertifika numarası doğrulaması için sunucu tarafı bir kayıt bulunmaz.
   Sertifika numarası belgenin tutarlılığını göstermek içindir. İleride doğrulama gerekirse küçük bir API eklenebilir.
-- Soru bankası 139 sorudan oluşur (103 tek seçim, 18 çoklu seçim, 8 eşleştirme, 10 yapılandırma). Sınav her alandan ağırlığa göre soru seçer; soru bankası büyüdükçe farklı sınavlar üretilir.
+- Soru bankası 132 sorudan oluşur (103 tek seçim, 18 çoklu seçim, 8 eşleştirme, 7 simülasyon).
+- Simülatör gerçek IOS'un tamamı değildir; yaygın sınav komutlarının bir alt kümesini destekler (ör. interface, vlan, switchport, ip address, ip route, router ospf, spanning-tree, access-list, ip nat, show ip interface brief, show vlan brief, show ip route, show running-config, ping). Desteklenmeyen komutlar 'Invalid input' hatası verir. Sınav her alandan ağırlığa göre soru seçer; soru bankası büyüdükçe farklı sınavlar üretilir.
 - Cisco, CCNA ve ilgili markalar Cisco Systems, Inc.'in ticari markalarıdır.

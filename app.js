@@ -64,6 +64,11 @@
         answer: lOrder.map((li) => rOrder.indexOf(src.answer[li]))
       });
     }
+    if (type === "lab") {
+      return Object.assign(base, {
+        topology: src.topology, devices: src.devices, init: src.init, tasks: src.tasks
+      });
+    }
     if (type === "config") {
       return Object.assign(base, { answerSets: src.answerSets });
     }
@@ -82,12 +87,14 @@
     if (t === "multi") return Array.isArray(a) && a.length > 0;
     if (t === "match") return Array.isArray(a) && a.some((x) => x !== null && x !== undefined);
     if (t === "config") return typeof a === "string" && a.trim() !== "";
+    if (t === "lab") return !!(a && Array.isArray(a.log) && a.log.length > 0);
     return false;
   }
 
   function isCorrect(q, a) {
     if (!isAnswered(q, a)) return false;
     const t = typeOf(q);
+    if (t === "lab") return IOSLab.taskResults(q, IOSLab.replay(q, a.log)).every(Boolean);
     if (t === "single") return a === q.answer;
     if (t === "multi") {
       const u = a.slice().sort((x, y) => x - y);
@@ -112,6 +119,7 @@
     if (t === "match") return q.left.map((l, j) =>
       l + " → " + (a[j] === null || a[j] === undefined ? "(boş)" : q.right[a[j]])).join("\n");
     if (t === "config") return a.trim();
+    if (t === "lab") return a.log.map((e) => e.prompt + e.cmd).join("\n");
     return "";
   }
 
@@ -121,6 +129,7 @@
     if (t === "multi") return q.answer.map((i) => LETTER(i) + ") " + q.options[i]).join("\n");
     if (t === "match") return q.left.map((l, j) => l + " → " + q.right[q.answer[j]]).join("\n");
     if (t === "config") return q.answerSets[0].join("\n");
+    if (t === "lab") return q.tasks.map((x, k) => (k + 1) + ". " + x.text).join("\n");
     return "";
   }
 
@@ -128,6 +137,7 @@
   let state = null;     // { mode, questions, answers, flags, current, startedAt, endsAt, finished }
   let timerId = null;
   let selectedChip = null;   // eşleştirmede tıklama ile seçilen sağ öğe
+  let labDev = null;         // simülasyon sorusunda seçili konsol sekmesi
   let lastIdx = -1;
 
   function saveState() {
@@ -219,7 +229,7 @@
   }
 
   function renderQuestion() {
-    if (state.current !== lastIdx) { selectedChip = null; lastIdx = state.current; }
+    if (state.current !== lastIdx) { selectedChip = null; labDev = null; lastIdx = state.current; }
     const total = state.questions.length;
     const idx = state.current;
     const qObj = state.questions[idx];
@@ -231,7 +241,7 @@
       " · Cevaplanan: " + answeredCount;
     $("progressBar").style.width = Math.round((answeredCount / total) * 100) + "%";
     $("qDomain").textContent = qObj.domain + ".0 " + domainName(qObj.domain) +
-      (t === "single" ? "" : " · " + ({ multi: "Çoklu seçim", match: "Eşleştirme", config: "Yapılandırma" })[t]);
+      (t === "single" ? "" : " · " + ({ multi: "Çoklu seçim", match: "Eşleştirme", config: "Yapılandırma", lab: "Simülasyon" })[t]);
     $("qText").textContent = (idx + 1) + ". " + qObj.q;
 
     const box = $("qOptions");
@@ -245,6 +255,7 @@
     else if (t === "multi") renderMulti(box, qObj, idx);
     else if (t === "match") renderMatch(box, qObj, idx);
     else if (t === "config") renderConfig(box, qObj, idx);
+    else if (t === "lab") renderLab(box, qObj, idx);
 
     $("btnPrev").disabled = idx === 0;
     $("btnNext").disabled = idx === total - 1;
@@ -407,6 +418,87 @@
     box.appendChild(wrap);
   }
 
+  // Simülasyon (topoloji + IOS konsolu) sorusu
+  function renderLab(box, qObj, idx) {
+    const devices = qObj.devices;
+    if (!labDev || devices.indexOf(labDev) === -1) labDev = devices[0];
+    if (!state.answers[idx] || !Array.isArray(state.answers[idx].log)) state.answers[idx] = { log: [] };
+    const log = state.answers[idx].log;
+
+    const topo = document.createElement("div");
+    topo.className = "topo-wrap";
+    topo.innerHTML = IOSLab.renderTopology(qObj.topology);
+    box.appendChild(topo);
+
+    const th = document.createElement("h4");
+    th.textContent = "Görevler (tümü tamamlanmalıdır)";
+    box.appendChild(th);
+    const ol = document.createElement("ol");
+    ol.className = "tasks";
+    qObj.tasks.forEach((t) => {
+      const li = document.createElement("li");
+      li.textContent = t.text;
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+
+    const tabs = document.createElement("div");
+    tabs.className = "tabs";
+    devices.forEach((dn) => {
+      const b = document.createElement("button");
+      b.className = "tab" + (dn === labDev ? " active" : "");
+      b.textContent = dn;
+      b.addEventListener("click", () => { labDev = dn; renderQuestion(); });
+      tabs.appendChild(b);
+    });
+    box.appendChild(tabs);
+
+    const term = document.createElement("pre");
+    term.className = "term";
+    const shown = log.filter((e) => e.dev === labDev).map((e) => e.prompt + e.cmd + (e.out ? "\n" + e.out : ""));
+    term.textContent = shown.length ? shown.join("\n") : "Konsol hazır. Örnek: enable, configure terminal, show ip interface brief";
+    box.appendChild(term);
+
+    const row = document.createElement("div");
+    row.className = "term-input";
+    const pr = document.createElement("span");
+    pr.className = "term-prompt";
+    pr.textContent = IOSLab.prompt(IOSLab.replay(qObj, log), labDev);
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.id = "labInput";
+    inp.autocomplete = "off";
+    inp.spellcheck = false;
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); submitLabCmd(qObj, idx, inp.value); }
+    });
+    row.appendChild(pr);
+    row.appendChild(inp);
+    box.appendChild(row);
+    term.scrollTop = term.scrollHeight;
+    inp.focus();
+  }
+
+  function submitLabCmd(qObj, idx, cmd) {
+    const raw = String(cmd || "").trim();
+    if (!raw) return;
+    const log = state.answers[idx].log;
+    const lab = IOSLab.replay(qObj, log);
+    log.push({ dev: labDev, cmd: raw, prompt: IOSLab.prompt(lab, labDev), out: IOSLab.run(lab, labDev, raw) });
+    saveState();
+    renderQuestion();
+  }
+
+  // Sayfa yenilendiğinde yalnızca kaydedilebilir alanlar saklanır; görevleri bankadan geri yükle
+  function reattachTasks() {
+    if (!state) return;
+    state.questions.forEach((q) => {
+      if (typeOf(q) !== "lab") return;
+      const src = QUESTIONS.find((s) => s.q === q.q);
+      if (src) q.tasks = src.tasks;
+    });
+  }
+
   function renderConfig(box, qObj, idx) {
     const ta = document.createElement("textarea");
     ta.className = "cli";
@@ -517,6 +609,18 @@
       item.appendChild(yours);
       item.appendChild(correct);
       item.appendChild(ex);
+      if (typeOf(q) === "lab") {
+        const res = IOSLab.taskResults(q, IOSLab.replay(q, user && user.log ? user.log : []));
+        const ul = document.createElement("ul");
+        ul.className = "tasks-res";
+        q.tasks.forEach((t, k) => {
+          const li = document.createElement("li");
+          li.textContent = (res[k] ? "✓ " : "✗ ") + t.text;
+          li.className = res[k] ? "t-ok" : "t-bad";
+          ul.appendChild(li);
+        });
+        item.appendChild(ul);
+      }
       rv.appendChild(item);
     });
 
@@ -661,7 +765,7 @@
       const saved = loadState();
       if (saved && saved.mode === "exam" && !saved.finished && saved.endsAt > Date.now()) {
         if (confirm("Yarım kalmış bir sınavınız var. Devam etmek ister misiniz? (Hayır: yeni sınav başlatılır)")) {
-          state = saved; show("screen-exam"); renderQuestion(); startTimer(); return;
+          state = saved; reattachTasks(); show("screen-exam"); renderQuestion(); startTimer(); return;
         }
       }
       clearState();

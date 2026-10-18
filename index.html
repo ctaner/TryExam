@@ -73,6 +73,30 @@
     .chip { padding: 10px 12px; margin-bottom: 8px; background: #fff; border: 1px solid var(--border); border-radius: 7px; font-size: 14px; cursor: grab; user-select: none; }
     .chip:hover { border-color: var(--accent); }
     .chip.selected { border-color: var(--accent); background: #dbeafe; outline: 2px solid var(--accent); }
+    .topo-wrap { margin: 8px 0 14px; }
+    svg.topo { width: 100%; max-width: 640px; height: auto; background: #fbfdff; border: 1px solid var(--border); border-radius: 8px; display: block; }
+    svg.topo .lnk { stroke: #7a8ca0; stroke-width: 2.5; }
+    svg.topo .ifl { font: 600 12px Consolas, "Courier New", monospace; fill: #334155; }
+    svg.topo .lbl { font: 11px "Segoe UI", Arial, sans-serif; fill: #5d6b7a; text-anchor: middle; }
+    svg.topo .dev { stroke-width: 2; }
+    svg.topo .dev-router { fill: #dbeafe; stroke: #0b5cad; }
+    svg.topo .dev-switch { fill: #dcfce7; stroke: #15803d; }
+    svg.topo .dev-pc { fill: #f3f4f6; stroke: #6b7280; }
+    svg.topo .dn { font: 700 14px "Segoe UI", Arial, sans-serif; fill: #1d2733; text-anchor: middle; }
+    svg.topo .dt { font: 11px "Segoe UI", Arial, sans-serif; fill: #5d6b7a; text-anchor: middle; }
+    ol.tasks { padding-left: 22px; }
+    ol.tasks li { margin-bottom: 6px; }
+    .tabs { display: flex; gap: 6px; margin: 14px 0 0; flex-wrap: wrap; }
+    .tabs .tab { padding: 6px 14px; border: 1px solid var(--border); background: #fff; border-radius: 6px 6px 0 0; cursor: pointer; font-family: inherit; font-size: 14px; }
+    .tabs .tab.active { background: #0f1b2a; color: #d6f5d6; border-color: #0f1b2a; }
+    pre.term { margin: 0; background: #0f1b2a; color: #d6f5d6; font: 14px/1.5 Consolas, "Courier New", monospace; padding: 12px 14px; border-radius: 0 8px 0 8px; min-height: 180px; max-height: 320px; overflow: auto; white-space: pre-wrap; }
+    .term-input { display: flex; align-items: center; background: #0f1b2a; border-radius: 0 0 8px 8px; padding: 0 14px 12px; }
+    .term-prompt { color: #7ee787; font: 14px Consolas, "Courier New", monospace; white-space: nowrap; margin-right: 8px; }
+    .term-input input { flex: 1; background: transparent; border: 0; outline: none; color: #d6f5d6; font: 14px Consolas, "Courier New", monospace; }
+    ul.tasks-res { list-style: none; padding-left: 0; margin: 8px 0 0; }
+    ul.tasks-res li { font-size: 14px; margin-bottom: 4px; }
+    li.t-ok { color: var(--ok); }
+    li.t-bad { color: var(--bad); }
     textarea.cli { width: 100%; font-family: Consolas, "Courier New", monospace; font-size: 15px; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: #0f1b2a; color: #d6f5d6; }
     @media (max-width: 600px) { .card { padding: 16px; } .result-big { font-size: 36px; } .match-wrap { grid-template-columns: 1fr; } }
   </style>
@@ -95,8 +119,8 @@
       <li>Süre: <strong>120 dakika</strong> (süre dolunca sınav otomatik bitirilir)</li>
       <li>Soru sayısı: <strong>100</strong> çoktan seçmeli soru, tek doğru cevap</li>
       <li>Geçme notu: <strong>%80</strong> ve üzeri (1000 üzerinden 800 ölçeğinde gösterilir)</li>
-      <li>Soru türleri: tek seçim, <strong>birden fazla doğru seçenek</strong>, <strong>sürükle-bırak eşleştirme</strong> ve <strong>yapılandırma (komut yazma)</strong></li>
-      <li>Çoklu seçim ve eşleştirme sorularında tüm cevaplar doğru olmalıdır (kısmi puan yoktur)</li>
+      <li>Soru türleri: tek seçim, <strong>birden fazla doğru seçenek</strong>, <strong>sürükle-bırak eşleştirme</strong> ve <strong>topoloji tabanlı simülasyon</strong> (IOS benzeri konsolda görevleri yapılandırma)</li>
+      <li>Çoklu seçim, eşleştirme ve simülasyon sorularında tüm cevaplar/görevler doğru olmalıdır (kısmi puan yoktur)</li>
       <li>Sorular arasında serbestçe gezinebilir, işaretleme yapabilirsiniz</li>
       <li>Sınav sırasında sayfayı yenilemeyin; ilerleme bu tarayıcıda saklanır</li>
     </ul>
@@ -188,6 +212,8 @@
 <script src="questions.js"></script>
 <script src="questions_extra.js"></script>
 <script src="questions_types.js"></script>
+<script src="questions_labs.js"></script>
+<script src="lab.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
