@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TryExam - CCNA 200-301 Sınav Simülatörü</title>
+  <meta name="description" content="CCNA 200-301 v2.0 müfredatına uygun, web tabanlı sınav simülatörü. TryExam ile pratik yapın, sınavı geçin ve sertifikanızı LinkedIn'de paylaşın.">
+  <style>
+    :root {
+      --bg: #f4f6f9; --card: #ffffff; --text: #1d2733; --muted: #5d6b7a;
+      --accent: #0b5cad; --accent-2: #083f78; --ok: #1a7f37; --bad: #b42318;
+      --warn: #b54708; --border: #d7dee7; --flag: #f5b400;
+      --font: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; }
+    header { background: var(--accent-2); color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    header h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
+    header span { font-size: 13px; opacity: .85; }
+    main { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    h2 { margin-top: 0; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    .muted { color: var(--muted); font-size: 14px; }
+    .btn { display: inline-block; border: 0; border-radius: 7px; padding: 10px 18px; font-size: 15px; cursor: pointer; background: var(--accent); color: #fff; text-decoration: none; font-family: inherit; }
+    .btn:hover { background: var(--accent-2); }
+    .btn.secondary { background: #e6ecf3; color: var(--text); }
+    .btn.secondary:hover { background: #d3dde9; }
+    .btn.flag { background: #fff6d6; color: #6b5200; border: 1px solid var(--flag); }
+    .btn.linkedin { background: #0a66c2; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 7px; font-size: 15px; font-family: inherit; }
+    label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 6px; }
+    .rules li { margin-bottom: 6px; }
+    .timer { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; background: rgba(255,255,255,.15); padding: 6px 12px; border-radius: 6px; }
+    .timer.low { background: var(--warn); }
+    .progress { height: 8px; background: #e3e9f0; border-radius: 4px; overflow: hidden; margin: 10px 0 18px; }
+    .progress > div { height: 100%; background: var(--accent); transition: width .2s; }
+    .qnav { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; margin-top: 12px; }
+    .qnav button { padding: 8px 0; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 13px; }
+    .qnav button.answered { background: #dbeafe; border-color: #93c5fd; }
+    .qnav button.flagged { background: #fff6d6; border-color: var(--flag); }
+    .qnav button.current { outline: 2px solid var(--accent); }
+    .opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+    .opt:hover { background: #f7fafd; }
+    .opt input { margin-top: 4px; }
+    .opt.selected { border-color: var(--accent); background: #eef5fc; }
+    .domain-tag { display: inline-block; font-size: 12px; background: #e6ecf3; color: var(--muted); padding: 2px 8px; border-radius: 4px; margin-bottom: 10px; }
+    .result-big { font-size: 46px; font-weight: 800; }
+    .pass { color: var(--ok); } .fail { color: var(--bad); }
+    .bar { height: 10px; background: #e3e9f0; border-radius: 5px; overflow: hidden; }
+    .bar > div { height: 100%; background: var(--accent); }
+    .domain-row { margin-bottom: 14px; }
+    .review-item { border-left: 4px solid var(--border); padding: 10px 14px; margin-bottom: 12px; background: #fafbfc; border-radius: 6px; }
+    .review-item.right { border-color: var(--ok); }
+    .review-item.wrong { border-color: var(--bad); }
+    .explain { font-size: 14px; color: var(--muted); margin-top: 6px; }
+    .hidden { display: none !important; }
+    .disclaimer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 24px; padding-top: 12px; }
+    .cert-preview { width: 100%; border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 12px 40px; }
+    footer a { color: var(--accent); }
+    @media (max-width: 600px) { .card { padding: 16px; } .result-big { font-size: 36px; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>TryExam <span>· CCNA 200-301 v2.0 Sınav Simülatörü</span></h1>
+  <div id="examTimer" class="timer hidden">--:--:--</div>
+</header>
+
+<main>
+
+  <!-- START -->
+  <section id="screen-start" class="card">
+    <h2>CCNA 200-301 Sınav Simülatörü</h2>
+    <p>Bu simülatör, <strong>CCNA 200-301 v2.0</strong> sınav konu başlıklarına göre hazırlanmış özgün sorularla gerçek sınav ortamını taklit eder. Sınav bağımsız bir hazırlık aracıdır; Cisco tarafından onaylanmış resmi bir sınav değildir.</p>
+    <h3>Sınav kuralları</h3>
+    <ul class="rules">
+      <li>Süre: <strong>120 dakika</strong> (süre dolunca sınav otomatik bitirilir)</li>
+      <li>Soru sayısı: <strong>40</strong> çoktan seçmeli soru, tek doğru cevap</li>
+      <li>Geçme notu: <strong>%80</strong> ve üzeri (1000 üzerinden 800 ölçeğinde gösterilir)</li>
+      <li>Sorular arasında serbestçe gezinebilir, işaretleme yapabilirsiniz</li>
+      <li>Sınav sırasında sayfayı yenilemeyin; ilerleme bu tarayıcıda saklanır</li>
+    </ul>
+    <h3>Konu ağırlıkları</h3>
+    <div id="domainWeights" class="muted"></div>
+    <div class="btn-row">
+      <button class="btn" id="btnStart">Sınava başla</button>
+      <button class="btn secondary" id="btnPractice">Kısa pratik (10 soru, süresiz)</button>
+    </div>
+    <div class="disclaimer">Bu sertifika TryExam tarafından verilen bir hazırlık tamamlama belgesidir; Cisco Systems tarafından verilen resmi CCNA sertifikası değildir.</div>
+  </section>
+
+  <!-- EXAM -->
+  <section id="screen-exam" class="hidden">
+    <div class="card">
+      <div class="muted" id="examMeta"></div>
+      <div class="progress"><div id="progressBar" style="width:0%"></div></div>
+      <span class="domain-tag" id="qDomain"></span>
+      <h3 id="qText" style="font-size:18px;font-weight:600;"></h3>
+      <div id="qOptions"></div>
+      <div class="btn-row">
+        <button class="btn secondary" id="btnPrev">← Önceki</button>
+        <button class="btn flag" id="btnFlag">İşaretle</button>
+        <button class="btn secondary" id="btnNext">Sonraki →</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="btnSubmit">Sınavı bitir</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Soru listesi</h3>
+      <div class="muted">Mavi: cevaplandı · Sarı: işaretli · Çerçeveli: şu anki soru</div>
+      <div class="qnav" id="qNav"></div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="screen-results" class="hidden">
+    <div class="card" style="text-align:center;">
+      <div class="muted">Puanınız (1000 üzerinden)</div>
+      <div class="result-big" id="scoreBig"></div>
+      <div id="passLine" style="font-size:18px;font-weight:600;"></div>
+      <div class="muted" id="resultMeta"></div>
+    </div>
+    <div class="card">
+      <h3>Konu bazlı performans</h3>
+      <div id="domainResults"></div>
+    </div>
+    <div class="card">
+      <h3>Cevap incelemesi</h3>
+      <div id="review"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn hidden" id="btnCert">Sertifika oluştur</button>
+      <button class="btn secondary" id="btnRetry">Yeniden dene</button>
+    </div>
+  </section>
+
+  <!-- CERTIFICATE -->
+  <section id="screen-cert" class="hidden">
+    <div class="card">
+      <h2>Tebrikler! Sertifikanızı oluşturun</h2>
+      <p class="muted">Sertifikada görünmesini istediğiniz adınızı yazın. Ad yalnızca sertifika üretmek için kullanılır; hiçbir sunucuya gönderilmez.</p>
+      <label for="certName">Ad Soyad</label>
+      <input type="text" id="certName" maxlength="60" placeholder="Örn. Ayşe Yılmaz">
+      <div class="btn-row">
+        <button class="btn" id="btnMakeCert">Önizleme oluştur</button>
+      </div>
+      <canvas id="certCanvas" class="cert-preview hidden" width="1600" height="1131"></canvas>
+      <div class="btn-row hidden" id="certActions">
+        <button class="btn" id="btnDownloadPdf">PDF indir</button>
+        <button class="btn linkedin" id="btnLinkedin">LinkedIn'de paylaş</button>
+      </div>
+      <p class="muted hidden" id="linkedinHelp"></p>
+      <div class="disclaimer">
+        LinkedIn paylaşımı, sertifikayı profilinizin "Lisanslar ve Sertifikalar" bölümüne ekler. Bu sayfa bir sunucu tabanlı doğrulama içermez; sertifika numarası yalnızca belgenin tutarlılığını göstermek içindir.
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn secondary" id="btnBackResults">Sonuçlara dön</button></div>
+  </section>
+
+</main>
+
+<footer>
+  TryExam · <a href="https://www.cemaltaner.com.tr" target="_blank" rel="noopener">www.cemaltaner.com.tr</a> · Bu uygulama Cisco Systems ile bağlantılı değildir. Cisco ve CCNA, Cisco Systems, Inc.'in ticari markalarıdır.
+</footer>
+
+<!-- jsPDF: PDF üretimi için (cdnjs) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="questions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
