@@ -243,6 +243,7 @@
     $("qDomain").textContent = qObj.domain + ".0 " + domainName(qObj.domain) +
       (t === "single" ? "" : " · " + ({ multi: "Çoklu seçim", match: "Eşleştirme", config: "Yapılandırma", lab: "Simülasyon" })[t]);
     $("qText").textContent = (idx + 1) + ". " + qObj.q;
+    $("qText").style.whiteSpace = "pre-line";
 
     const box = $("qOptions");
     box.innerHTML = "";

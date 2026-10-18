@@ -190,6 +190,10 @@
         d.routes = d.routes.filter((r) => !(r.net === rest[2] && r.mask === rest[3]));
         return "";
       }
+      if (sub === "logging" && is(sub2, "host", 2)) {
+        d.logHosts = d.logHosts.filter((h) => h !== rest[2]);
+        return "";
+      }
       return INVALID;
     }
     if (is(c, "hostname", 2)) {
@@ -274,6 +278,13 @@
       if (is(sub, "shutdown", 4)) { f.shut = false; return ""; }
       if (sub === "ip" && sub2 === "address") { f.ip = null; f.mask = null; return ""; }
       if (sub === "description") { f.desc = ""; return ""; }
+      if (sub === "ip" && sub2 === "access-group") {
+        const dir = (rest[3] || "").toLowerCase();
+        if (dir === "in") f.aclIn = null;
+        else if (dir === "out") f.aclOut = null;
+        else return INVALID;
+        return "";
+      }
       return INVALID;
     }
     if (is(c, "shutdown", 4)) { f.shut = true; return ""; }
@@ -335,6 +346,11 @@
 
   function execRouter(lab, dev, c, rest, restStr) {
     const d = lab.devices[dev];
+    if (c === "no" && is(rest[0], "network", 3)) {
+      const net = rest[1], wild = rest[2], area = rest[4];
+      d.ospf.nets = d.ospf.nets.filter((n) => !(n.net === net && n.wild === wild && n.area === String(area)));
+      return "";
+    }
     if (is(c, "network", 3)) {
       const net = rest[0], wild = rest[1], kw = (rest[2] || "").toLowerCase(), area = rest[3];
       if (!isIp(net) || !isIp(wild) || kw !== "area" || area === undefined) return INVALID;
